@@ -47,9 +47,10 @@ impl Branch {
     
     /// Run the branch's LLM agent loop and return a conclusion.
     ///
-    /// The branch gets the channel's shared ToolServer which has memory_recall
-    /// and memory_save pre-registered. It runs the agent loop with max_turns(10),
-    /// then sends a BranchResult event with the conclusion.
+    /// The branch uses the channel's shared ToolServer. `memory_save` is always
+    /// available; `memory_recall` is added by `BranchToolGuard` before the branch
+    /// spawns and removed after it finishes. Runs with max_turns(10), then sends
+    /// a BranchResult event with the conclusion.
     pub async fn run(mut self, prompt: impl Into<String>) -> Result<String> {
         let prompt = prompt.into();
         

@@ -5,15 +5,13 @@
 //!
 //! ## ToolServer Topology
 //!
-//! **Channel ToolServer** (one per agent, shared across channels):
+//! **Channel/Branch ToolServer** (one per agent, shared):
 //! - `memory_save` — registered at startup (stateless, uses `Arc<MemorySearch>`)
-//! - `reply`, `branch`, `spawn_worker`, `route`, `cancel` — added dynamically
-//!   per conversation turn via `add_channel_tools()` / `remove_channel_tools()`
-//!   because they hold per-channel state.
-//!
-//! **Branch ToolServer** (shared with channel):
-//! - Uses the same ToolServer as the channel. Branch tools (`memory_recall`,
-//!   `memory_save`, `spawn_worker`) are registered at startup.
+//! - `memory_recall` — branch-only; dynamically added/removed via `BranchToolGuard`
+//!   (ref-counted so concurrent branches share it safely)
+//! - `reply`, `branch`, `spawn_worker`, `route`, `cancel`, `skip`, `react` — added
+//!   dynamically per conversation turn via `add_channel_tools()` /
+//!   `remove_channel_tools()` because they hold per-channel state.
 //!
 //! **Worker ToolServer** (one per worker, created at spawn time):
 //! - `shell`, `file`, `exec` — stateless, registered at creation
@@ -67,9 +65,10 @@ use tokio::sync::{broadcast, mpsc};
 
 /// Create the shared ToolServer for channels and branches.
 ///
-/// Registers tools that are available at agent startup (memory tools). Channel-specific
-/// tools (reply, branch, spawn_worker, route, cancel) are added dynamically per
-/// conversation turn because they hold per-channel state.
+/// Registers `memory_save` at startup (stateless). Channel-specific tools (reply,
+/// branch, spawn_worker, route, cancel, skip, react) are added per conversation
+/// turn. `memory_recall` is managed by `BranchToolGuard` — added when the first
+/// branch starts, removed when the last finishes.
 pub fn create_channel_tool_server(memory_search: Arc<MemorySearch>) -> ToolServerHandle {
     ToolServer::new()
         .tool(MemorySaveTool::new(memory_search))
