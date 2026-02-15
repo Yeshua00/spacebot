@@ -533,7 +533,8 @@ function addEdgesToGraph(graph: Graph, edges: AssociationItem[]) {
 		if (
 			graph.hasNode(edge.source_id) &&
 			graph.hasNode(edge.target_id) &&
-			!graph.hasEdge(edge.id)
+			!graph.hasEdge(edge.id) &&
+			!graph.hasDirectedEdge(edge.source_id, edge.target_id)
 		) {
 			graph.addEdgeWithKey(edge.id, edge.source_id, edge.target_id, {
 				color: EDGE_COLORS[edge.relation_type] ?? "#444444",
