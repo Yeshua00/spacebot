@@ -6,39 +6,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
         with:
-          targets: aarch64-unknown-linux-gnu
-
-      - name: Install cross-compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu perl make
-
-      - name: Build OpenSSL for AArch64
-        run: |
-          wget https://www.openssl.org/source/openssl-3.3.0.tar.gz
-          tar -xzf openssl-3.3.0.tar.gz
-          cd openssl-3.3.0
-          ./Configure linux-aarch64 \
-            --cross-compile-prefix=aarch64-linux-gnu- \
-            --prefix=/opt/openssl-aarch64 \
-            no-shared
-          make -j$(nproc)
-          sudo make install_sw
-
-      - name: Build
-        run: cargo build --release --target aarch64-unknown-linux-gnu
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          OPENSSL_STATIC: "1"
-          OPENSSL_DIR: /opt/openssl-aarch64
-          OPENSSL_INCLUDE_DIR: /opt/openssl-aarch64/include
-          OPENSSL_LIB_DIR: /opt/openssl-aarch64/lib64
+          command: build
+          target: aarch64-unknown-linux-gnu
+          toolchain: stable
+          args: "--release"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
