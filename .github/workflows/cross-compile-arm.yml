@@ -3,10 +3,6 @@ name: Cross-compile ARM (Raspberry Pi 3)
 on:
   workflow_dispatch:
 
-env:
-  CARGO_TERM_COLOR: always
-  OPENSSL_STATIC: "1"
-
 jobs:
   build-arm:
     runs-on: ubuntu-latest
@@ -14,61 +10,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ARM binary using Docker
+        uses: docker/build-push-action@v5
         with:
-          targets: arm-unknown-linux-gnueabihf
+          context: .
+          file: ./Dockerfile.arm
+          platforms: linux/arm/v7
+          load: true
+          tags: spacebot-arm:latest
 
-      - name: Install system dependencies
+      - name: Extract binary
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-arm-linux-gnueabihf \
-            g++-arm-linux-gnueabihf \
-            libc6-dev-armhf-cross \
-            libssl-dev \
-            pkg-config
-
-      - name: Set up cross compilation environment
-        run: |
-          echo "CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
-          echo "CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
-          echo "CXX_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-g++" >> $GITHUB_ENV
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache Cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo build
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-arm-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-arm-
-
-      - name: Build for ARM (without browser automation, optimized for RP3)
-        run: |
-          cargo build --release \
-            --no-default-features \
-            --features "arm" \
-            --target arm-unknown-linux-gnueabihf \
-            -p spacebot
-
-      - name: Create artifact directory
-        run: mkdir -p artifacts
-
-      - name: Strip binary (reduce size)
-        run: |
-          arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/spacebot -o artifacts/spacebot
+          docker create --name spacebot-extract spacebot-arm:latest
+          docker cp spacebot-extract:/usr/local/bin/spacebot ./artifacts/spacebot
+          docker rm spacebot-extract
           ls -lh artifacts/
 
       - name: Upload artifact

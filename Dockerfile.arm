@@ -1,0 +1,26 @@
+FROM rust:1.85-bookworm
+
+# Install ARM cross-compilation toolchain
+RUN apt-get update && apt-get install -y \
+    gcc-arm-linux-gnueabihf \
+    g++-arm-linux-gnueabihf \
+    libc6-dev-armhf-cross \
+    libssl-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set cross-compilation environment
+ENV CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc
+ENV CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc
+ENV CXX_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-g++
+
+WORKDIR /build
+COPY . .
+
+# Build without browser automation for ARM
+RUN cargo build --release --no-default-features --features "arm" --target arm-unknown-linux-gnueabihf -p spacebot
+
+# Copy binary to expected location
+RUN cp target/arm-unknown-linux-gnueabihf/release/spacebot /usr/local/bin/spacebot
+
+CMD ["spacebot"]
