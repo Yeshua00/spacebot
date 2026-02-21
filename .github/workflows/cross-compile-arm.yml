@@ -10,14 +10,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Enable ARMhf architecture
+        run: |
+          sudo dpkg --add-architecture armhf
+          sudo apt-get update
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: arm-unknown-linux-gnueabihf
 
-      - name: Install ARM toolchain
+      - name: Install ARM toolchain and libraries
         run: |
-          sudo apt-get update
           sudo apt-get install -y \
             gcc-arm-linux-gnueabihf \
             g++-arm-linux-gnueabihf \
