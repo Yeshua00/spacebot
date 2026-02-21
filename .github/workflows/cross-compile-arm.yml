@@ -2,30 +2,14 @@ name: Cross-compile ARM (Raspberry Pi 3)
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        description: 'Target architecture'
-        required: true
-        default: 'arm-unknown-linux-gnueabihf'
-        type: choice
-        options:
-          - arm-unknown-linux-gnueabihf
-          - aarch64-unknown-linux-gnu
-      build_type:
-        description: 'Build type'
-        required: true
-        default: 'release'
-        type: choice
-        options:
-          - release
-          - debug
 
 env:
   CARGO_TERM_COLOR: always
+  OPENSSL_STATIC: "1"
 
 jobs:
   build-arm:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,18 +17,23 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ github.event.inputs.target }}
-
-      - name: Install cross tool
-        uses: taiki-e/install-action@crosstool-ng
+          targets: arm-unknown-linux-gnueabihf
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libssl-dev \
-            pkg-config \
-            libsqlite3-dev
+            gcc-arm-linux-gnueabihf \
+            g++-arm-linux-gnueabihf \
+            libc6-dev-armhf-cross \
+            pkg-config-arm-linux-gnueabihf \
+            libssl-dev
+
+      - name: Set up cross compilation environment
+        run: |
+          echo "CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          echo "CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+          echo "CXX_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-g++" >> $GITHUB_ENV
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -66,59 +55,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-arm-
 
-      - name: Build for ARM (without browser automation)
-        uses: taiki-e/cross-action@v1
-        with:
-          target: ${{ github.event.inputs.target }}
-          command: |
-            cargo build --release --no-default-features --features "arm"
+      - name: Build for ARM (without browser automation, optimized for RP3)
+        run: |
+          cargo build --release \
+            --no-default-features \
+            --features "arm" \
+            --target arm-unknown-linux-gnueabihf \
+            -p spacebot
 
       - name: Create artifact directory
         run: mkdir -p artifacts
 
       - name: Strip binary (reduce size)
         run: |
-          arm-strip target/${{ github.event.inputs.target }}/release/spacebot -o artifacts/spacebot
+          arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/spacebot -o artifacts/spacebot
           ls -lh artifacts/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: spacebot-arm-${{ github.event.inputs.target }}
-          path: artifacts/spacebot
-
-  build-arm-native:
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libssl-dev \
-            pkg-config \
-            libsqlite3-dev \
-            libudev-dev
-
-      - name: Build natively on ARM (full features)
-        run: |
-          cargo build --release --no-default-features
-
-      - name: Create artifact directory
-        run: mkdir -p artifacts
-
-      - name: Strip binary
-        run: |
-          strip target/release/spacebot -o artifacts/spacebot
-          ls -lh artifacts/
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: spacebot-arm-native
+          name: spacebot-arm
           path: artifacts/spacebot
