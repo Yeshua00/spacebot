@@ -22,7 +22,10 @@
 //! - `memory_save` — registered at startup
 
 pub mod branch_tool;
+#[cfg(feature = "browser-automation")]
 pub mod browser;
+#[cfg(not(feature = "browser-automation"))]
+pub mod browser_stub;
 pub mod cancel;
 pub mod channel_recall;
 pub mod cron;
@@ -43,7 +46,13 @@ pub mod spawn_worker;
 pub mod web_search;
 
 pub use branch_tool::{BranchArgs, BranchError, BranchOutput, BranchTool};
+#[cfg(feature = "browser-automation")]
 pub use browser::{
+    ActKind, BrowserAction, BrowserArgs, BrowserError, BrowserOutput, BrowserTool, ElementSummary,
+    TabInfo,
+};
+#[cfg(not(feature = "browser-automation"))]
+pub use browser_stub::{
     ActKind, BrowserAction, BrowserArgs, BrowserError, BrowserOutput, BrowserTool, ElementSummary,
     TabInfo,
 };
@@ -233,7 +242,14 @@ pub fn create_worker_tool_server(
         ));
 
     if browser_config.enabled {
-        server = server.tool(BrowserTool::new(browser_config, screenshot_dir));
+        #[cfg(feature = "browser-automation")]
+        {
+            server = server.tool(BrowserTool::new(browser_config, screenshot_dir));
+        }
+        #[cfg(not(feature = "browser-automation"))]
+        {
+            tracing::warn!("Browser automation is not available in this build (ARM)");
+        }
     }
 
     if let Some(key) = brave_search_key {
@@ -278,7 +294,14 @@ pub fn create_cortex_chat_tool_server(
         .tool(ExecTool::new(instance_dir, workspace));
 
     if browser_config.enabled {
-        server = server.tool(BrowserTool::new(browser_config, screenshot_dir));
+        #[cfg(feature = "browser-automation")]
+        {
+            server = server.tool(BrowserTool::new(browser_config, screenshot_dir));
+        }
+        #[cfg(not(feature = "browser-automation"))]
+        {
+            tracing::warn!("Browser automation is not available in this build (ARM)");
+        }
     }
 
     if let Some(key) = brave_search_key {

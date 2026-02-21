@@ -1,0 +1,124 @@
+name: Cross-compile ARM (Raspberry Pi 3)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target architecture'
+        required: true
+        default: 'arm-unknown-linux-gnueabihf'
+        type: choice
+        options:
+          - arm-unknown-linux-gnueabihf
+          - aarch64-unknown-linux-gnu
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-arm:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ github.event.inputs.target }}
+
+      - name: Install cross tool
+        uses: taiki-e/install-action@crosstool-ng
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libssl-dev \
+            pkg-config \
+            libsqlite3-dev
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache Cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-arm-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-arm-
+
+      - name: Build for ARM (without browser automation)
+        uses: taiki-e/cross-action@v1
+        with:
+          target: ${{ github.event.inputs.target }}
+          command: |
+            cargo build --release --no-default-features --features "arm"
+
+      - name: Create artifact directory
+        run: mkdir -p artifacts
+
+      - name: Strip binary (reduce size)
+        run: |
+          arm-strip target/${{ github.event.inputs.target }}/release/spacebot -o artifacts/spacebot
+          ls -lh artifacts/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spacebot-arm-${{ github.event.inputs.target }}
+          path: artifacts/spacebot
+
+  build-arm-native:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libssl-dev \
+            pkg-config \
+            libsqlite3-dev \
+            libudev-dev
+
+      - name: Build natively on ARM (full features)
+        run: |
+          cargo build --release --no-default-features
+
+      - name: Create artifact directory
+        run: mkdir -p artifacts
+
+      - name: Strip binary
+        run: |
+          strip target/release/spacebot -o artifacts/spacebot
+          ls -lh artifacts/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spacebot-arm-native
+          path: artifacts/spacebot
