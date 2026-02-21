@@ -22,17 +22,15 @@ jobs:
             gcc-arm-linux-gnueabihf \
             g++-arm-linux-gnueabihf \
             libc6-dev-armhf-cross \
-            libssl-dev
+            libssl-dev:armhf
 
       - name: Configure cross-compilation
         run: |
           cat >> $GITHUB_ENV << 'ENVEOF'
           CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc
           CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc
-          CXX_gnueabihf=arm_arm_unknown_linux-linux-gnueabihf-g++
           OPENSSL_LIB_DIR=/usr/lib/arm-linux-gnueabihf
           OPENSSL_INCLUDE_DIR=/usr/include/arm-linux-gnueabihf
-          PKG_CONFIG_PATH_arm_unknown_linux_gnueabihf=/usr/lib/arm-linux-gnueabihf/pkgconfig
           ENVEOF
 
       - name: Build ARM binary
