@@ -26,8 +26,8 @@ jobs:
             gcc-arm-linux-gnueabihf \
             g++-arm-linux-gnueabihf \
             libc6-dev-armhf-cross \
-            pkg-config-arm-linux-gnueabihf \
-            libssl-dev
+            libssl-dev \
+            pkg-config
 
       - name: Set up cross compilation environment
         run: |
